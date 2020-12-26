@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>黑白棋</title>
+  <style>
+    .main {
+      width: 420px;
+      margin: 20px auto;
+    }
+
+    .title {
+      font-size: 18px;
+      font-weight: bold;
+      line-height: 50px;
+    }
+
+    .button {
+      margin: 10px 0;
+    }
+
+    .cell {
+      display: inline-block;
+      vertical-align: bottom;
+      width: 50px;
+      height: 50px;
+      border: 1px solid #ccc;
+      background: aqua;
+      cursor: default;
+    }
+
+    .cell-active {
+      cursor: pointer;
+    }
+
+    .cell.chess-black::before, .cell.chess-white::before {
+      content: '';
+      display: inline-block;
+      margin: 5px;
+      width: 40px;
+      height: 40px;
+      border-radius: 20px;
+    }
+
+    .cell.chess-black::before {
+      background: black;
+    }
+
+    .cell.chess-white::before {
+      background: white;
+    }
+  </style>
+</head>
+<body>
+<div class="main">
+  <div id="score">
+    <div class="title">当前执棋者:
+      <div id="Board" class="cell"></div>
+    </div>
+    <button id="button" type="button" disabled="disabled" class="button">返回上一步</button>
+  </div>
+  <div id="grid"></div>
+</div>
+<script>
+  //数组的深拷贝
+  function eepCopy(obj) {
+    let temp = obj.constructor === Array ? [] : {}
+    for (let val in obj) {
+      temp[val] = typeof obj[val] == 'object' ? this.eepCopy(obj[val]) : obj[val]
+    }
+    return temp
+  }
+</script>
+<script>
+  var YMAX = 8
+  var XMAX = 8
+  var board = [
+    [0, 0, 1, 0, 0, 0, 0, 1],
+    [0, 0, 2, 0, 0, 0, 2, 0],
+    [0, 0, 2, 0, 0, 2, 0, 0],
+    [1, 0, 2, 2, 2, 0, 0, 0],
+    [1, 2, 2, 2, 1, 0, 0, 0],
+    [1, 2, 0, 2, 2, 2, 2, 1],
+    [0, 2, 2, 2, 0, 0, 0, 0],
+    [1, 0, 1, 0, 1, 0, 0, 0],
+  ]
+  var lastGrid
+  var grid = document.getElementById('grid')
+  var color = 1
+  var isChessMove = false
+  render()
+  var lastBtn = document.getElementById('button')
+  lastBtn.addEventListener('click', () => {
+    if (lastGrid) {
+      color = 3 - color
+      board = Array.from(lastGrid)
+      render()
+      lastBtn.setAttribute('disabled', 'disabled')
+    }
+  })
+
+  function render() {
+    grid.innerHTML = ''
+    document.getElementById('Board').className = color === 1 ? 'cell chess-white' : 'cell chess-black'
+    board.forEach((y, yIndex) => {
+      y.forEach((x, xIndex) => {
+        var ele = document.createElement('div')
+        ele.id = `cell-${yIndex}-${xIndex}`
+        ele.classList.add('cell')
+        grid.appendChild(ele)
+        if (x) {
+          if (x === 1) ele.classList.add('chess-white')
+          if (x === 2) ele.classList.add('chess-black')
+        } else {
+          ele.classList.add('cell-active')
+          ele.addEventListener('click', function (e) {
+            if (board[yIndex][xIndex]) return
+            isChessMove = false
+            chessMove(yIndex, xIndex, 'left')
+            chessMove(yIndex, xIndex, 'right')
+            chessMove(yIndex, xIndex, 'top')
+            chessMove(yIndex, xIndex, 'down')
+            chessMove(yIndex, xIndex, 'top-left')
+            chessMove(yIndex, xIndex, 'top-right')
+            chessMove(yIndex, xIndex, 'down-left')
+            chessMove(yIndex, xIndex, 'down-right')
+            if (isChessMove) {
+              lastBtn.removeAttribute('disabled')
+              color = 3 - color
+              document.getElementById('Board').className = color === 1 ? 'cell chess-white' : 'cell chess-black'
+            }
+          })
+        }
+      })
+      grid.appendChild(document.createElement('br'))
+
+      function chessMove(yIndex, xIndex, dir) {
+        let oy = yIndex, ox = xIndex
+        let isMove = false // 是否可以进行移动
+        let hasDraw = false // 是否停止移动
+        while (getIsMove('draw')) {
+          if (board[oy][ox] === 3 - color) hasDraw = true
+          else if (board[oy][ox] === color) {
+            if (hasDraw) isMove = true
+            break
+          } else break
+        }
+        if (isMove) {
+          if (!isChessMove) lastGrid = eepCopy(board)
+          while (getIsMove('move')) {
+            board[oy][ox] = color
+            var cell = document.getElementById(`cell-${oy}-${ox}`)
+            cell.classList.remove('cell-active')
+            cell.classList.remove(color === 2 ? 'chess-white' : 'chess-black')
+            cell.classList.add(color === 1 ? 'chess-white' : 'chess-black')
+          }
+          isChessMove = true
+        }
+
+        function getIsMove(type) {
+          switch (dir) {
+            case 'left':
+              if (type === 'draw') return --ox > 0
+              if (type === 'move') return ++ox <= xIndex
+              break
+            case 'right':
+              if (type === 'draw') return ++ox < XMAX
+              if (type === 'move') return --ox >= xIndex
+              break
+            case 'top':
+              if (type === 'draw') return --oy > 0
+              if (type === 'move') return ++oy <= yIndex
+              break
+            case 'down':
+              if (type === 'draw') return ++oy < YMAX
+              if (type === 'move') return --oy >= yIndex
+              break
+            case 'top-left':
+              if (type === 'draw') return --oy >= 0 && --ox >= 0
+              if (type === 'move') return ++oy <= yIndex && ++ox <= xIndex
+              break
+            case 'top-right':
+              if (type === 'draw') return --oy >= 0 && ++ox < XMAX
+              if (type === 'move') return ++oy <= yIndex && --ox >= xIndex
+              break
+            case 'down-left':
+              if (type === 'draw') return ++oy < YMAX && --ox >= 0
+              if (type === 'move') return --oy >= yIndex && ++ox <= xIndex
+              break
+            case 'down-right':
+              if (type === 'draw') return ++oy < YMAX && ++ox < XMAX
+              if (type === 'move') return --oy >= yIndex && --ox >= xIndex
+              break
+            default:
+              return false
+          }
+        }
+      }
+    })
+  }
+</script>
+</body>
+</html>
